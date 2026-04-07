@@ -1,21 +1,20 @@
 ---
-
 # Project source code URL: https://github.com/morpheus65535/bazarr
 
 bazarr_enabled: true
 
 bazarr_identifier: bazarr
 
-bazarr_uid: ''
-bazarr_gid: ''
-bazarr_timezone: 'Etc/UTC'
+bazarr_uid: ""
+bazarr_gid: ""
+bazarr_timezone: "Etc/UTC"
 
 # renovate: datasource=docker depName=lscr.io/linuxserver/bazarr versioning=semver
 bazarr_version: v1.5.6-ls342
 bazarr_arch: amd64
 
 # The hostname at which bazarr is served.
-bazarr_hostname: ''
+bazarr_hostname: ""
 
 # The path at which bazarr is served.
 # This value must either be `/` or not end with a slash (e.g. `/bazarr`).
@@ -75,7 +74,7 @@ bazarr_container_labels_traefik_rule: "Host(`{{ bazarr_container_labels_traefik_
 bazarr_container_labels_traefik_priority: 0
 bazarr_container_labels_traefik_entrypoints: web-secure
 bazarr_container_labels_traefik_tls: "{{ bazarr_container_labels_traefik_entrypoints != 'web' }}"
-bazarr_container_labels_traefik_tls_certResolver: default  # noqa var-naming
+bazarr_container_labels_traefik_tls_certResolver: default # noqa var-naming
 
 # bazarr_container_labels_additional_labels contains a multiline string with additional labels to add to the container label file.
 # See `../templates/labels.j2` for details.
@@ -84,7 +83,7 @@ bazarr_container_labels_traefik_tls_certResolver: default  # noqa var-naming
 # bazarr_container_labels_additional_labels: |
 #   my.label=1
 #   another.label="here"
-bazarr_container_labels_additional_labels: ''
+bazarr_container_labels_additional_labels: ""
 
 # bazarr_container_additional_environment_variables contains a multiline string with additional environment variables to pass to the container.
 #
@@ -92,7 +91,7 @@ bazarr_container_labels_additional_labels: ''
 # bazarr_container_additional_environment_variables: |
 #   VAR=1
 #   ANOTHER=value
-bazarr_container_additional_environment_variables: ''
+bazarr_container_additional_environment_variables: ""
 
 # A list of additional "volumes" to mount in the container.
 #
@@ -111,3 +110,13 @@ bazarr_container_additional_volumes: []
 
 # A list of extra arguments to pass to the container
 bazarr_container_extra_arguments: []
+
+# bazarr_restart_necessary controls whether the bazarr systemd
+# service will be restarted (when true) or merely started (when false) by the
+# systemd service manager role (when conditional restart is enabled).
+#
+# This value is automatically computed during installation based on whether
+# any configuration files, the systemd service file, or the container image changed.
+# The default of `false` means "no restart needed" — appropriate when the role's
+# installation tasks haven't run (e.g., due to --tags skipping them).
+bazarr_restart_necessary: false
