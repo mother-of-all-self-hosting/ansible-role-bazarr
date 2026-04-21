@@ -1,3 +1,11 @@
+<!--
+SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+SPDX-FileCopyrightText: 2025 spatterlight
+SPDX-FileCopyrightText: 2026 sudo-Tiz
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # Bazarr Ansible role
 
 This is an [Ansible](https://www.ansible.com/) role which installs [Bazarr](https://www.bazarr.media/) to run as a [Docker](https://www.docker.com/) container wrapped in a systemd service.
