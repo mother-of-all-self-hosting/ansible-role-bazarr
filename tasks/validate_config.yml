@@ -1,20 +1,22 @@
 # SPDX-FileCopyrightText: 2023 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2025 spatterlight
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 # SPDX-FileCopyrightText: 2026 sudo-Tiz
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
 - name: Fail if required Bazarr settings not defined
   ansible.builtin.fail:
-    msg: >
+    msg: >-
       You need to define a required configuration setting (`{{ item }}`).
   when: "lookup('vars', item, default='') | string | length == 0"
   with_items:
     - bazarr_uid
     - bazarr_gid
     - bazarr_hostname
+    - bazarr_path_prefix
+    - bazarr_container_network
 
 - name: Fail if Bazarr architecture is not supported
   ansible.builtin.fail:
@@ -23,14 +25,14 @@
       This Bazarr role also does not support self-building yet, so it's not possible to make use of it.
   when: "bazarr_arch not in ['amd64', 'arm64']"
 
-- name: Validate Bazarr Traefik configuration
+- name: Run if Traefik is enabled
   when: bazarr_container_labels_traefik_enabled | bool
   block:
-    - name: Fail if required Bazarr Traefik settings not defined
+    - name: Fail if Traefik settings required for Bazarr are not defined
       ansible.builtin.fail:
         msg: >-
           You need to define a required configuration setting (`{{ item }}`).
-      when: "vars[item] == ''"
+      when: "lookup('vars', item, default='') | string | length == 0"
       with_items:
         - bazarr_container_labels_traefik_hostname
         - bazarr_container_labels_traefik_path_prefix

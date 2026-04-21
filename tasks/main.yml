@@ -1,31 +1,29 @@
 # SPDX-FileCopyrightText: 2023 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2025 spatterlight
+# SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 # SPDX-FileCopyrightText: 2026 sudo-Tiz
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-
-- name: Install Bazarr
+- name: Perform Bazarr installation tasks
+  when: bazarr_enabled | bool
   tags:
     - setup-all
     - setup-bazarr
     - install-all
     - install-bazarr
   block:
-    - name: Run Bazarr validation tasks
-      when: bazarr_enabled | bool
+    - name: Validate Bazarr configuration
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/validate_config.yml"
-
-    - name: Run Bazarr installation tasks
-      when: bazarr_enabled | bool
+    - name: Install Bazarr
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/install.yml"
 
-- name: Uninstall Bazarr
+- name: Perform Bazarr uninstallation tasks
+  when: not bazarr_enabled | bool
   tags:
     - setup-all
     - setup-bazarr
   block:
-    - name: Run Bazarr uninstallation tasks
-      when: not bazarr_enabled | bool
+    - name: Uninstall Bazarr
       ansible.builtin.include_tasks: "{{ role_path }}/tasks/uninstall.yml"
