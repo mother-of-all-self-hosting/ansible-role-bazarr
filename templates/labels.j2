@@ -1,4 +1,5 @@
 {#
+SPDX-FileCopyrightText: 2023 Julian-Samuel Gebühr
 SPDX-FileCopyrightText: 2023 Slavi Pantaleev
 SPDX-FileCopyrightText: 2025 spatterlight
 SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
@@ -15,6 +16,11 @@ traefik.docker.network={{ bazarr_container_labels_traefik_docker_network }}
 {% endif %}
 
 {% set middlewares = [] %}
+
+{% if bazarr_container_labels_traefik_middleware_basic_auth_enabled %}
+{% set middlewares = middlewares + [bazarr_identifier + '-basic-auth'] %}
+traefik.http.middlewares.{{ bazarr_identifier }}-basic-auth.basicauth.users={{ bazarr_container_labels_traefik_middleware_basic_auth_users }}
+{% endif %}
 
 {% if bazarr_container_labels_traefik_path_prefix != '/' %}
 traefik.http.middlewares.{{ bazarr_identifier }}-slashless-redirect.redirectregex.regex=^({{ bazarr_container_labels_traefik_path_prefix | quote }})$

@@ -9,14 +9,15 @@
 - name: Fail if required Bazarr settings not defined
   ansible.builtin.fail:
     msg: >-
-      You need to define a required configuration setting (`{{ item }}`).
-  when: "lookup('vars', item, default='') | string | length == 0"
+      You need to define a required configuration setting (`{{ item.name }}`).
+  when: "item.when | bool and lookup('vars', item.name, default='') | string | length == 0"
   with_items:
-    - bazarr_uid
-    - bazarr_gid
-    - bazarr_hostname
-    - bazarr_path_prefix
-    - bazarr_container_network
+    - { "name": "bazarr_uid", when: true }
+    - { "name": "bazarr_gid", when: true }
+    - { "name": "bazarr_hostname", when: true }
+    - { "name": "bazarr_path_prefix", when: true }
+    - { "name": "bazarr_container_network", when: true }
+    - { "name": "bazarr_container_labels_traefik_middleware_basic_auth_users", when: "{{ bazarr_container_labels_traefik_middleware_basic_auth_enabled }}"}
 
 - name: Fail if Bazarr architecture is not supported
   ansible.builtin.fail:
