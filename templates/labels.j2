@@ -1,3 +1,13 @@
+{#
+SPDX-FileCopyrightText: 2023 Julian-Samuel Gebühr
+SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+SPDX-FileCopyrightText: 2025 spatterlight
+SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
+SPDX-FileCopyrightText: 2026 sudo-Tiz
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
 {% if bazarr_container_labels_traefik_enabled %}
 traefik.enable=true
 
@@ -6,6 +16,11 @@ traefik.docker.network={{ bazarr_container_labels_traefik_docker_network }}
 {% endif %}
 
 {% set middlewares = [] %}
+
+{% if bazarr_container_labels_traefik_middleware_basic_auth_enabled %}
+{% set middlewares = middlewares + [bazarr_identifier + '-basic-auth'] %}
+traefik.http.middlewares.{{ bazarr_identifier }}-basic-auth.basicauth.users={{ bazarr_container_labels_traefik_middleware_basic_auth_users }}
+{% endif %}
 
 {% if bazarr_container_labels_traefik_path_prefix != '/' %}
 traefik.http.middlewares.{{ bazarr_identifier }}-slashless-redirect.redirectregex.regex=^({{ bazarr_container_labels_traefik_path_prefix | quote }})$
@@ -16,6 +31,20 @@ traefik.http.middlewares.{{ bazarr_identifier }}-slashless-redirect.redirectrege
 {% if bazarr_container_labels_traefik_path_prefix != '/' %}
 traefik.http.middlewares.{{ bazarr_identifier }}-strip-prefix.stripprefix.prefixes={{ bazarr_container_labels_traefik_path_prefix }}
 {% set middlewares = middlewares + [bazarr_identifier + '-strip-prefix'] %}
+{% endif %}
+
+{% if bazarr_container_labels_traefik_additional_request_headers.keys() | length > 0 %}
+{% for name, value in bazarr_container_labels_traefik_additional_request_headers.items() %}
+traefik.http.middlewares.{{ bazarr_identifier }}-add-request-headers.headers.customrequestheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [bazarr_identifier + '-add-request-headers'] %}
+{% endif %}
+
+{% if bazarr_container_labels_traefik_additional_response_headers.keys() | length > 0 %}
+{% for name, value in bazarr_container_labels_traefik_additional_response_headers.items() %}
+traefik.http.middlewares.{{ bazarr_identifier }}-add-response-headers.headers.customresponseheaders.{{ name }}={{ value }}
+{% endfor %}
+{% set middlewares = middlewares + [bazarr_identifier + '-add-response-headers'] %}
 {% endif %}
 
 traefik.http.routers.{{ bazarr_identifier }}.rule={{ bazarr_container_labels_traefik_rule }}
@@ -35,4 +64,6 @@ traefik.http.routers.{{ bazarr_identifier }}.tls.certResolver={{ bazarr_containe
 traefik.http.services.{{ bazarr_identifier }}.loadbalancer.server.port={{ bazarr_container_http_port }}
 {% endif %}
 
-{{ bazarr_container_labels_additional_labels }}
+{% for arg in bazarr_container_labels_additional_labels %}
+{{ arg }}
+{% endfor %}
