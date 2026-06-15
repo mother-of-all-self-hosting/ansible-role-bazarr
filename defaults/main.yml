@@ -120,6 +120,9 @@ bazarr_container_labels_additional_labels: "{{ bazarr_container_labels_additiona
 bazarr_container_labels_additional_labels_auto: []
 bazarr_container_labels_additional_labels_custom: []
 
+# Specify the size of the container's tmpfs volume
+bazarr_server_container_tmpfs_tmp_size: 128m
+
 # A list of extra arguments to pass to the container (`docker create` command)
 bazarr_container_extra_arguments: "{{ bazarr_container_extra_arguments_auto + bazarr_container_extra_arguments_custom }}"
 bazarr_container_extra_arguments_auto: []
