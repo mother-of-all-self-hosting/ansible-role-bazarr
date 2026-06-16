@@ -26,7 +26,7 @@
     - { "name": "bazarr_hostname", when: true }
     - { "name": "bazarr_path_prefix", when: true }
     - { "name": "bazarr_container_network", when: true }
-    - { "name": "bazarr_container_labels_traefik_middleware_basic_auth_users", when: "{{ bazarr_container_labels_traefik_middleware_basic_auth_enabled }}"}
+    - { "name": "bazarr_container_labels_traefik_middleware_basic_auth_users", when: "{{ bazarr_container_labels_traefik_middleware_basic_auth_enabled }}" }
 
 - name: Fail if Bazarr architecture is not supported
   ansible.builtin.fail:
