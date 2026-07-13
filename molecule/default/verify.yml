@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026 Suguru Hirahara
+# SPDX-FileCopyrightText: 2026 spatterlight
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+---
+- name: Verify Bazarr systemd service
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for Bazarr service to become active (up to 180s)
+      ansible.builtin.systemd:
+        name: bazarr.service
+      register: bazarr_service
+      until: bazarr_service.status.ActiveState == 'active'
+      retries: 36
+      delay: 5
+
+    - name: Assert Bazarr service is active
+      ansible.builtin.assert:
+        that: bazarr_service.status.ActiveState == 'active'
+        fail_msg: "bazarr.service not active ({{ bazarr_service.status.ActiveState }})"
+        success_msg: "bazarr.service is active"
+
+    - name: Wait for Bazarr HTTP endpoint to respond (up to 10m)
+      ansible.builtin.uri:
+        url: "http://localhost:6767/"
+        method: GET
+        status_code: [200, 302]
+        follow_redirects: none
+      register: bazarr_endpoint
+      until: bazarr_endpoint.status in [200, 302]
+      retries: 120
+      delay: 5
+
+    - name: Assert Bazarr HTTP endpoint responds
+      ansible.builtin.assert:
+        that: bazarr_endpoint.status in [200, 302]
+        fail_msg: "Bazarr did not respond as expected ({{ bazarr_endpoint.status | default('no response') }})"
+        success_msg: "Bazarr responded with {{ bazarr_endpoint.status }}"
+
+    - name: Show Bazarr systemd service status summary
+      ansible.builtin.debug:
+        msg:
+          - "Bazarr systemd: {{ bazarr_service.status.ActiveState }}"
+          - "Bazarr HTTP: {{ bazarr_endpoint.status }}"
