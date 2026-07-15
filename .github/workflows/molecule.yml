@@ -49,14 +49,6 @@ jobs:
           path: ~/.ansible/collections
           key: ansible-collections-${{ hashFiles('bazarr/molecule/default/requirements.yml') }}
 
-      - name: Install Ansible roles
-        working-directory: bazarr
-        run: ansible-galaxy role install -r molecule/default/requirements.yml
-
-      - name: Install Ansible collections
-        working-directory: bazarr
-        run: ansible-galaxy collection install -r molecule/default/requirements.yml
-
       - name: Run Molecule
         working-directory: bazarr
         run: molecule test --scenario-name ${{ matrix.scenario }}
