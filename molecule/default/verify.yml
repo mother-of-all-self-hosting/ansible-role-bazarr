@@ -23,6 +23,12 @@
         fail_msg: "bazarr.service not active ({{ bazarr_service.status.ActiveState }})"
         success_msg: "bazarr.service is active"
 
+    - name: Retrieve Bazarr service log for debugging
+      when: bazarr_debug_service_enabled | bool
+      ansible.builtin.command:
+        cmd: journalctl -xeu bazarr.service
+      changed_when: false
+
     - name: Wait for Bazarr HTTP endpoint to respond (up to 10m)
       ansible.builtin.uri:
         url: "http://localhost:6767/"

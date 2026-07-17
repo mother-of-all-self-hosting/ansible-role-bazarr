@@ -27,6 +27,10 @@ provisioner:
   inventory:
     group_vars:
       all:
+        # Helper variables
+        bazarr_debug_service_enabled: false
+
+        # Variables for Bazarr
         bazarr_uid: 1000
         bazarr_gid: 1000
         bazarr_hostname: bazarr
