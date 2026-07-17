@@ -33,7 +33,8 @@ provisioner:
         # Variables for Bazarr
         bazarr_uid: 1000
         bazarr_gid: 1000
-        bazarr_hostname: bazarr
+        bazarr_scheme: http
+        bazarr_hostname: localhost
         bazarr_container_labels_traefik_enabled: false
         bazarr_container_http_host_bind_port: 6767
   env:
