@@ -84,7 +84,7 @@ bazarr_container_labels_traefik_priority: 0
 bazarr_container_labels_traefik_entrypoints: web-secure
 bazarr_container_labels_traefik_tls: "{{ bazarr_container_labels_traefik_entrypoints != 'web' }}"
 bazarr_container_labels_traefik_tls_certResolver: default  # noqa var-naming
-bazarr_container_labels_traefik_middleware_basic_auth_enabled: false
+bazarr_container_labels_traefik_middleware_basic_auth_enabled: true
 # See: https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/basicauth/
 bazarr_container_labels_traefik_middleware_basic_auth_users: ""
 
