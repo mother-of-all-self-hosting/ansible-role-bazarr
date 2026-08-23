@@ -18,7 +18,7 @@ bazarr_identifier: bazarr
 bazarr_base_path: "/{{ bazarr_identifier }}"
 bazarr_data_path: "{{ bazarr_base_path }}/data"
 
-# renovate: datasource=docker depName=linuxserver/bazarr
+# renovate: datasource=docker depName=linuxserver/bazarr versioning=semver
 bazarr_version: 1.6.0
 
 bazarr_uid: ""
