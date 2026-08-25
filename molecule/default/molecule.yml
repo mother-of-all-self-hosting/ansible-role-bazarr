@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2026 spatterlight
 # SPDX-FileCopyrightText: 2026 Suguru Hirahara
 #
@@ -38,6 +39,16 @@ provisioner:
         bazarr_hostname: localhost
         bazarr_container_labels_traefik_enabled: false
         bazarr_container_http_host_bind_port: 6767
+
+        # Neither the role's default (UTC) nor anything the image would settle
+        # on by itself, so seeing Bazarr report it back proves that the env
+        # template reached the process rather than merely the disk.
+        bazarr_environment_variables_tz: Australia/Eucla
+
+        # A marker no image default could produce, which verify.yml looks for
+        # both in the rendered env file and in the running container's
+        # environment, to prove the passthrough works end to end.
+        bazarr_environment_variables_additional_variables: MASH_MOLECULE_MARKER=reached-the-process
   env:
     # Workaround for https://github.com/ansible/molecule/issues/4391
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles

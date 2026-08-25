@@ -1,53 +1,334 @@
+# SPDX-FileCopyrightText: 2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2026 spatterlight
 # SPDX-FileCopyrightText: 2026 Suguru Hirahara
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 ---
-- name: Verify Bazarr systemd service
+- name: Verify Bazarr
   hosts: all
   become: true
   gather_facts: false
+
+  vars:
+    # Role-describing values are read from the role's own defaults, so that a
+    # change to what the role ships has to be matched by what actually runs.
+    # Only leaf literals are read this way - values assembled by Jinja cannot be
+    # resolved outside of the role - and scenario-tuned values (the timezone,
+    # the published port, the additional environment variables) deliberately
+    # come from the scenario's group_vars instead.
+    bazarr_verify_identifier: "{{ bazarr_verify_defaults.bazarr_identifier }}"
+
+    # Mirrors how `bazarr_base_path` and `bazarr_data_path` are derived in
+    # defaults/main.yml. The mount assertion below cross-checks the result
+    # against the path the role really handed to Docker, so a change to the
+    # derivation surfaces as a failure rather than as a silently skipped check.
+    bazarr_verify_base_path: "/{{ bazarr_verify_identifier }}"
+    bazarr_verify_data_path: "{{ bazarr_verify_base_path }}/data"
+
+    bazarr_verify_url: "http://localhost:{{ bazarr_container_http_host_bind_port }}"
+
+    bazarr_verify_wrong_api_key: "00000000000000000000000000000000"
+
   tasks:
-    - name: Wait for Bazarr service to become active (up to 180s)
-      ansible.builtin.systemd:
-        name: bazarr.service
-      register: bazarr_service
-      until: bazarr_service.status.ActiveState == 'active'
+    - name: Load the Bazarr role defaults
+      ansible.builtin.include_vars:
+        file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+        name: bazarr_verify_defaults
+
+    # Necessary but far from sufficient: the unit is `Restart=always`, so a
+    # container that crash-loops still reports `active`. Everything that follows
+    # is what actually establishes that Bazarr is running and configured.
+    - name: Wait for the Bazarr systemd service to become active
+      ansible.builtin.systemd_service:
+        name: "{{ bazarr_verify_identifier }}.service"
+      register: bazarr_verify_service
+      until: bazarr_verify_service.status.ActiveState == 'active'
       retries: 36
       delay: 5
 
-    - name: Assert Bazarr service is active
-      ansible.builtin.assert:
-        that: bazarr_service.status.ActiveState == 'active'
-        fail_msg: "bazarr.service not active ({{ bazarr_service.status.ActiveState }})"
-        success_msg: "bazarr.service is active"
-
-    - name: Retrieve Bazarr service log for debugging
+    - name: Retrieve the Bazarr service log for debugging
       when: bazarr_debug_service_enabled | bool
       ansible.builtin.command:
-        cmd: journalctl -xeu bazarr.service
+        cmd: "journalctl -xeu {{ bazarr_verify_identifier }}.service"
       changed_when: false
 
-    - name: Wait for Bazarr HTTP endpoint to respond (up to 10m)
+    # Bazarr's HTTP port accepts connections only once its Flask application is
+    # serving, and a published Docker port with nothing behind it makes the
+    # kernel RESET the connection rather than refuse it - which the uri module
+    # reports as status -1, not as a connection error worth retrying. Hence
+    # `failed_when: false`, so that the retry loop rather than the first attempt
+    # decides whether Bazarr came up.
+    - name: Wait for the Bazarr API to start answering
       ansible.builtin.uri:
-        url: "http://localhost:6767/"
+        url: "{{ bazarr_verify_url }}/api/system/status"
         method: GET
-        status_code: [200, 302]
+        status_code: [401]
         follow_redirects: none
-      register: bazarr_endpoint
-      until: bazarr_endpoint.status in [200, 302]
-      retries: 120
+      register: bazarr_verify_api_unauthenticated
+      until: (bazarr_verify_api_unauthenticated.status | default(-1) | int) == 401
+      retries: 60
       delay: 5
+      failed_when: false
 
-    - name: Assert Bazarr HTTP endpoint responds
+    # Bazarr's REST API is guarded by an API key that the application generates
+    # for itself on first boot. If this ever returned 200, every Bazarr instance
+    # deployed by this role would be handing its settings - subtitle provider
+    # credentials included - to anyone who can reach the port.
+    - name: Assert that the Bazarr API rejects unauthenticated requests
       ansible.builtin.assert:
-        that: bazarr_endpoint.status in [200, 302]
-        fail_msg: "Bazarr did not respond as expected ({{ bazarr_endpoint.status | default('no response') }})"
-        success_msg: "Bazarr responded with {{ bazarr_endpoint.status }}"
+        that: (bazarr_verify_api_unauthenticated.status | default(-1) | int) == 401
+        fail_msg: >-
+          The Bazarr API answered {{ bazarr_verify_api_unauthenticated.status | default('nothing') }}
+          instead of 401 to a request carrying no API key.
+        success_msg: The Bazarr API rejects unauthenticated requests
 
-    - name: Show Bazarr systemd service status summary
+    - name: Inspect the Bazarr container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - "{{ bazarr_verify_identifier }}"
+      register: bazarr_verify_inspect
+      changed_when: false
+
+    - name: Extract the Bazarr container definition
+      ansible.builtin.set_fact:
+        bazarr_verify_container: "{{ (bazarr_verify_inspect.stdout | from_json)[0] }}"
+
+    # This is the assertion that earns (or denies) automated version bumps: the
+    # image that is actually running has to be the one `bazarr_version` names.
+    #
+    # `linuxserver/bazarr:<version>` is a tag LinuxServer.io synthesises and
+    # REPUBLISHES on every rebuild, so it does not identify a build on its own.
+    # The OCI label does, and pinning the assertion to `v<version>-ls<build>`
+    # records that mapping: whatever the rebuild counter says, the Bazarr
+    # release inside the image must be the one this role claims to deploy.
+    - name: Assert that the running container is the pinned Bazarr image
+      ansible.builtin.assert:
+        that:
+          - bazarr_verify_container.Config.Image == 'docker.io/linuxserver/bazarr:' ~ bazarr_verify_defaults.bazarr_version
+          - bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] is match('^v' ~ (bazarr_verify_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+$')
+        fail_msg: >-
+          Expected the container to run docker.io/linuxserver/bazarr:{{ bazarr_verify_defaults.bazarr_version }}
+          built from Bazarr v{{ bazarr_verify_defaults.bazarr_version }}, but it runs
+          {{ bazarr_verify_container.Config.Image }}
+          labelled {{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] | default('nothing') }}.
+        success_msg: >-
+          The container runs {{ bazarr_verify_container.Config.Image }}
+          ({{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] }})
+
+    # The README promises these; without them the role would be shipping a
+    # writable, root-running, fully capable container while claiming otherwise.
+    - name: Assert that the Bazarr container is hardened as documented
+      ansible.builtin.assert:
+        that:
+          - bazarr_verify_container.HostConfig.ReadonlyRootfs
+          - bazarr_verify_container.Config.User == (bazarr_uid | string) ~ ':' ~ (bazarr_gid | string)
+          - bazarr_verify_container.HostConfig.CapDrop == ['ALL']
+        fail_msg: >-
+          The Bazarr container is not hardened as documented
+          (read-only: {{ bazarr_verify_container.HostConfig.ReadonlyRootfs }},
+          user: {{ bazarr_verify_container.Config.User }},
+          dropped capabilities: {{ bazarr_verify_container.HostConfig.CapDrop }}).
+        success_msg: The Bazarr container is read-only, unprivileged and drops all capabilities by default
+
+    - name: Assert that the Bazarr container stores its state on the role's data path
+      ansible.builtin.assert:
+        that:
+          - bazarr_verify_container.Mounts | selectattr('Destination', 'equalto', '/config') | map(attribute='Source') | list == [bazarr_verify_data_path]
+        fail_msg: >-
+          Expected /config to be bound to {{ bazarr_verify_data_path }}, but the container has
+          {{ bazarr_verify_container.Mounts | selectattr('Destination', 'equalto', '/config') | map(attribute='Source') | list }}.
+        success_msg: "Bazarr keeps its state on {{ bazarr_verify_data_path }}"
+
+    # Proves the env template reached the process, not merely the disk: the
+    # scenario asks for a timezone that is neither the role's default (UTC) nor
+    # anything the image would arrive at by itself, and the additional-variables
+    # passthrough carries a marker no image default could produce.
+    - name: Read the environment file rendered by the role
+      ansible.builtin.slurp:
+        src: "{{ bazarr_verify_base_path }}/env"
+      register: bazarr_verify_env_file
+
+    - name: Assert that the rendered environment file carries the configured values
+      ansible.builtin.assert:
+        that:
+          - "'TZ=' ~ bazarr_environment_variables_tz in (bazarr_verify_env_file.content | b64decode).split('\n')"
+          - "'PUID=' ~ (bazarr_uid | string) in (bazarr_verify_env_file.content | b64decode).split('\n')"
+          - "'PGID=' ~ (bazarr_gid | string) in (bazarr_verify_env_file.content | b64decode).split('\n')"
+          - "bazarr_environment_variables_additional_variables in (bazarr_verify_env_file.content | b64decode).split('\n')"
+        fail_msg: "{{ bazarr_verify_base_path }}/env does not carry the configured values"
+        success_msg: "{{ bazarr_verify_base_path }}/env carries the configured values"
+
+    - name: Assert that the configured environment reached the container process
+      ansible.builtin.assert:
+        that:
+          - "'TZ=' ~ bazarr_environment_variables_tz in bazarr_verify_container.Config.Env"
+          - bazarr_environment_variables_additional_variables in bazarr_verify_container.Config.Env
+        fail_msg: >-
+          The container environment is {{ bazarr_verify_container.Config.Env }}, which does not
+          carry TZ={{ bazarr_environment_variables_tz }} and {{ bazarr_environment_variables_additional_variables }}.
+        success_msg: The configured environment reached the container process
+
+    # Bazarr writes its own configuration file; the role only provides the
+    # directory it lives in. Reading it back from the role's data path proves
+    # both that the bind mount is in effect and where the API key comes from.
+    - name: Read the configuration file Bazarr generated on the role's data path
+      ansible.builtin.slurp:
+        src: "{{ bazarr_verify_data_path }}/config/config.yaml"
+      register: bazarr_verify_config_file
+
+    - name: Parse the configuration file Bazarr generated
+      ansible.builtin.set_fact:
+        bazarr_verify_config: "{{ bazarr_verify_config_file.content | b64decode | from_yaml }}"
+
+    # `bazarr_container_http_port` is the port the role publishes and points
+    # Traefik at. Bazarr itself takes its port from this file, which the role
+    # does not template, and the image's own readiness check is hardwired to
+    # 6767 - so the two have to agree or nothing would be reachable. Asserting
+    # the agreement here is what keeps the pair from drifting apart unnoticed.
+    - name: Assert that Bazarr listens on the port the role publishes
+      ansible.builtin.assert:
+        that: (bazarr_verify_config.general.port | int) == (bazarr_verify_defaults.bazarr_container_http_port | int)
+        fail_msg: >-
+          Bazarr listens on {{ bazarr_verify_config.general.port }} while the role publishes
+          {{ bazarr_verify_defaults.bazarr_container_http_port }}.
+        success_msg: "Bazarr listens on the published port {{ bazarr_verify_config.general.port }}"
+
+    # Bazarr ships no authentication on its web interface out of the box. The
+    # role compensates by putting Traefik HTTP Basic authentication in front of
+    # it by default; see docs/configuring-bazarr.md. Should upstream ever start
+    # defaulting to an authentication method of its own, this assertion is meant
+    # to fail so the documentation and the default can be revisited.
+    - name: Assert that Bazarr's own web interface authentication is still off by default
+      ansible.builtin.assert:
+        that: bazarr_verify_config.auth.type is none
+        fail_msg: >-
+          Bazarr now defaults its web interface authentication to
+          `{{ bazarr_verify_config.auth.type }}`; docs/configuring-bazarr.md and
+          `bazarr_container_labels_traefik_middleware_basic_auth_enabled` need revisiting.
+        success_msg: Bazarr still ships without web interface authentication, as the role's documentation states
+
+    - name: Query the Bazarr system status endpoint with the generated API key
+      ansible.builtin.uri:
+        url: "{{ bazarr_verify_url }}/api/system/status"
+        method: GET
+        headers:
+          X-API-KEY: "{{ bazarr_verify_config.auth.apikey }}"
+        status_code: [200]
+        follow_redirects: none
+      register: bazarr_verify_status
+
+    - name: Assert that Bazarr reports the version, timezone and storage the role configured
+      ansible.builtin.assert:
+        that:
+          - bazarr_verify_status.json.data.bazarr_version == bazarr_verify_defaults.bazarr_version
+          - bazarr_verify_status.json.data.package_version is match('^v' ~ (bazarr_verify_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+ ')
+          - bazarr_verify_status.json.data.timezone == bazarr_environment_variables_tz
+          - bazarr_verify_status.json.data.bazarr_config_directory == '/config'
+          - bazarr_verify_status.json.data.database_engine is match('^Sqlite ')
+        fail_msg: "Bazarr reports {{ bazarr_verify_status.json.data }}"
+        success_msg: >-
+          Bazarr {{ bazarr_verify_status.json.data.bazarr_version }}
+          ({{ bazarr_verify_status.json.data.package_version }}) is running in
+          {{ bazarr_verify_status.json.data.timezone }} on {{ bazarr_verify_status.json.data.database_engine }}
+
+    # The counterpart of the unauthenticated check: it is the instance's own
+    # generated key that opens the API, not the mere presence of a header.
+    - name: Query the Bazarr system status endpoint with an API key that is not this instance's
+      ansible.builtin.uri:
+        url: "{{ bazarr_verify_url }}/api/system/status"
+        method: GET
+        headers:
+          X-API-KEY: "{{ bazarr_verify_wrong_api_key }}"
+        status_code: [401]
+        follow_redirects: none
+      register: bazarr_verify_wrong_key
+
+    - name: Assert that only this instance's API key is accepted
+      ansible.builtin.assert:
+        that: bazarr_verify_wrong_key.status == 401
+        fail_msg: "The Bazarr API accepted an API key that is not this instance's ({{ bazarr_verify_wrong_key.status }})"
+        success_msg: The Bazarr API accepts only this instance's own API key
+
+    # Bazarr runs its Alembic migrations on every start, against a SQLite
+    # database that lives on the role's data path. Its presence, its schema and
+    # its stamped migration revision are what a version bump would put at risk.
+    - name: Query the Bazarr SQLite database
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import json
+            import sqlite3
+            import sys
+
+            connection = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+            print(json.dumps({
+                "tables": sorted(row[0] for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'")),
+                "revisions": [row[0] for row in connection.execute(
+                    "SELECT version_num FROM alembic_version")],
+            }))
+          - "{{ bazarr_verify_data_path }}/db/bazarr.db"
+      register: bazarr_verify_database
+      changed_when: false
+
+    - name: Assert that Bazarr created and migrated its database on the role's data path
+      ansible.builtin.assert:
+        that:
+          - "'table_shows' in (bazarr_verify_database.stdout | from_json).tables"
+          - "'table_movies' in (bazarr_verify_database.stdout | from_json).tables"
+          - "'alembic_version' in (bazarr_verify_database.stdout | from_json).tables"
+          - (bazarr_verify_database.stdout | from_json).revisions | length == 1
+        fail_msg: >-
+          {{ bazarr_verify_data_path }}/db/bazarr.db does not hold a migrated Bazarr schema:
+          {{ bazarr_verify_database.stdout }}
+        success_msg: >-
+          Bazarr migrated its database to revision
+          {{ (bazarr_verify_database.stdout | from_json).revisions | first }}
+          on {{ bazarr_verify_data_path }}
+
+    # The container is read-only with a tmpfs on /run, so everything Bazarr
+    # needs to keep has to land on the bind mount. Restarting the service and
+    # finding the same instance behind the API is what proves it did.
+    - name: Restart the Bazarr systemd service
+      ansible.builtin.systemd_service:
+        name: "{{ bazarr_verify_identifier }}.service"
+        state: restarted
+
+    - name: Wait for the restarted Bazarr to serve its API again
+      ansible.builtin.uri:
+        url: "{{ bazarr_verify_url }}/api/system/status"
+        method: GET
+        headers:
+          X-API-KEY: "{{ bazarr_verify_config.auth.apikey }}"
+        status_code: [200]
+        follow_redirects: none
+      register: bazarr_verify_status_after_restart
+      until: (bazarr_verify_status_after_restart.status | default(-1) | int) == 200
+      retries: 60
+      delay: 5
+      failed_when: false
+
+    - name: Assert that Bazarr survived a restart with its state intact
+      ansible.builtin.assert:
+        that:
+          - (bazarr_verify_status_after_restart.status | default(-1) | int) == 200
+          - bazarr_verify_status_after_restart.json.data.start_time > bazarr_verify_status.json.data.start_time
+        fail_msg: >-
+          After a restart, Bazarr answered
+          {{ bazarr_verify_status_after_restart.status | default('nothing') }}
+          to the API key it generated before the restart.
+        success_msg: Bazarr restarted and still answers to the API key it persisted on the role's data path
+
+    - name: Show the verified Bazarr deployment
       ansible.builtin.debug:
         msg:
-          - "Bazarr systemd: {{ bazarr_service.status.ActiveState }}"
-          - "Bazarr HTTP: {{ bazarr_endpoint.status }}"
+          - "systemd: {{ bazarr_verify_service.status.ActiveState }}"
+          - "image: {{ bazarr_verify_container.Config.Image }} ({{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] }})"
+          - "version: {{ bazarr_verify_status.json.data.bazarr_version }}"
+          - "timezone: {{ bazarr_verify_status.json.data.timezone }}"
+          - "database: {{ bazarr_verify_status.json.data.database_engine }} at revision {{ (bazarr_verify_database.stdout | from_json).revisions | first }}"
