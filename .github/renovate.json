@@ -2,5 +2,17 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>mother-of-all-self-hosting/renovate-config#v1.0.0"
+  ],
+  "packageRules": [
+    {
+      "description": [
+        "Bazarr version bumps are reviewed, never automerged. This restates what the shared preset already does, so that extending `//patch-automerge` here would be a deliberate act rather than an oversight.",
+        "Bazarr has no patch releases: its third version component is the release counter. Upstream cuts one release every few months (v1.5.1, v1.5.2 ... v1.5.6, then v1.6.0), so under `versioning=semver` a bump Renovate labels `patch` is in fact a full feature release.",
+        "Those releases carry Alembic migrations that run unattended against the operator's SQLite database on container start, with no downgrade path: `migrations/versions` went from 10 to 11 files across v1.5.3 -> v1.5.4 and from 11 to 15 across v1.5.6 -> v1.6.0. A fresh-install Molecule scenario structurally cannot see that risk.",
+        "Separately, `linuxserver/bazarr:<version>` is a tag LinuxServer.io republishes on every rebuild, so it does not identify a build and Renovate cannot see those rebuilds at all. See docs/configuring-bazarr.md."
+      ],
+      "matchManagers": ["custom.regex"],
+      "automerge": false
+    }
   ]
 }
