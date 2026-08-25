@@ -1,5 +1,5 @@
 .ansible
 
-/var/
+/molecule/venv/
 
-molecule/venv
+/var/
