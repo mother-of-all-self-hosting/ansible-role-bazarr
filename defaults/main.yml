@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2023, 2024 Julian-Samuel Gebühr
 # SPDX-FileCopyrightText: 2023, 2024 Nikita Chernyi
 # SPDX-FileCopyrightText: 2023, 2025 MASH project contributors
-# SPDX-FileCopyrightText: 2023-2025 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2023-2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2024 Sergio Durigan Junior
 # SPDX-FileCopyrightText: 2025 spatterlight
 # SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
@@ -51,7 +51,15 @@ bazarr_container_network_deletion_enabled: true
 # Takes an "<ip>:<port>" or "<port>" value (e.g. "127.0.0.1:2586"), or empty string to not expose.
 bazarr_container_http_host_bind_port: ""
 
-# The port number in the container
+# The port number that Bazarr listens on inside the container, which is what the
+# port publishing above and the Traefik labels below are pointed at.
+#
+# This is not a knob. Bazarr takes its port from the configuration file it writes
+# for itself under `bazarr_data_path` (a file this role deliberately does not
+# template, because Bazarr rewrites it at runtime), and the container image's own
+# readiness check is hardwired to 6767 regardless. Changing this value would only
+# stop the role from reaching Bazarr, so `tasks/validate_config.yml` refuses it
+# rather than letting the service come up unreachable.
 bazarr_container_http_port: 6767
 
 # A list of additional container networks that the container would be connected to.

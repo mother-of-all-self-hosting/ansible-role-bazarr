@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Slavi Pantaleev
+# SPDX-FileCopyrightText: 2023, 2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2025 spatterlight
 # SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 # SPDX-FileCopyrightText: 2026 sudo-Tiz
@@ -26,6 +26,18 @@
     - bazarr_hostname
     - bazarr_path_prefix
     - bazarr_container_network
+
+- name: Fail if Bazarr is expected to listen on a port it cannot listen on
+  ansible.builtin.fail:
+    msg: >-
+      Your configuration sets `bazarr_container_http_port` to `{{ bazarr_container_http_port }}`,
+      but Bazarr always listens on 6767 inside the container. Its port comes from the configuration
+      file Bazarr maintains for itself under `bazarr_data_path`, which this role does not template,
+      and the container image's own readiness check is hardwired to 6767 as well. Publishing a
+      different port would merely leave the service unreachable, so this role does not allow it.
+      To change the port Bazarr is reachable on from outside the container, use
+      `bazarr_container_http_host_bind_port`.
+  when: "bazarr_container_http_port | int != 6767"
 
 - name: Fail if Bazarr architecture is not supported
   ansible.builtin.fail:
