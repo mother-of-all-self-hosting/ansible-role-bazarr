@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2020 Chris van Dijk
 SPDX-FileCopyrightText: 2020 Dominik Zajac
 SPDX-FileCopyrightText: 2020 Mickaël Cornière
 SPDX-FileCopyrightText: 2020-2024 MDAD project contributors
-SPDX-FileCopyrightText: 2020-2024 Slavi Pantaleev
+SPDX-FileCopyrightText: 2020-2024, 2026 Slavi Pantaleev
 SPDX-FileCopyrightText: 2022 François Darveau
 SPDX-FileCopyrightText: 2022 Julian Foad
 SPDX-FileCopyrightText: 2022 Warren Bailey
@@ -68,6 +68,29 @@ If another authentication service is used or authentication is not required at a
 bazarr_container_labels_traefik_middleware_basic_auth_enabled: false
 ```
 
+Bazarr's REST API is a separate matter: it is guarded by an API key that Bazarr generates for itself on first boot and keeps in `config/config.yaml` under `bazarr_data_path`. That guard applies regardless of whether the HTTP Basic authentication above is enabled.
+
+### About the version that gets deployed
+
+This role deploys the [LinuxServer.io Bazarr image](https://docs.linuxserver.io/images/docker-bazarr), pinned by `bazarr_version`.
+
+Two things about that tag are worth knowing:
+
+- **It is not immutable.** LinuxServer.io rebuilds its images regularly — for base image and dependency updates, without any change to Bazarr itself — and republishes `linuxserver/bazarr:<version>` each time. `linuxserver/bazarr:1.6.0` resolved to `v1.6.0-ls357`, then `-ls358`, `-ls359` and `-ls360` over the course of a single month. Since the role pulls the image on every installation run, you receive those rebuilds without the pin ever changing.
+- **An immutable form exists.** LinuxServer.io also publishes `v<version>-ls<build>` tags, which do identify a single build. If you would rather pin one, set it yourself:
+
+  ```yaml
+  bazarr_version: v1.6.0-ls360
+  ```
+
+  Note that the role's own dependency updates track the `<version>` form, so a pin like this becomes yours to maintain from then on.
+
+### About the port
+
+`bazarr_container_http_port` is deliberately not adjustable. Bazarr reads its port from the configuration file it maintains for itself under `bazarr_data_path`, which this role does not template, and the container image's readiness check is hardwired to 6767 in any case — so the role refuses any other value instead of bringing up a service nothing can reach.
+
+To change the port Bazarr is published on outside the container, use `bazarr_container_http_host_bind_port`.
+
 ### Extending the configuration
 
 There are some additional things you may wish to configure about the service.
@@ -88,7 +111,7 @@ If you use the MASH playbook, the shortcut commands with the [`just` program](ht
 
 ## Usage
 
-After running the command for installation, Bazarr becomes available at the specified hostname like `https://example.com`. To use it, open the URL on the browser and create an account.
+After running the command for installation, Bazarr becomes available at the specified hostname like `https://example.com`. Open the URL in a browser to reach its web interface — Bazarr has no accounts of its own, so what guards it is the HTTP Basic authentication described above.
 
 ## Troubleshooting
 
