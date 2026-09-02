@@ -63,12 +63,6 @@ Refer to [this page](./molecule/README.md) for details about how to utilize it.
 
 ### Releases
 
-Release tags are cut automatically on every push to `main` by [`.github/workflows/autotag.yml`](.github/workflows/autotag.yml), which asks [`bin/compute-next-tag.sh`](bin/compute-next-tag.sh) what the commit should be released as.
+Tags are created by [`.github/workflows/autotag.yml`](.github/workflows/autotag.yml), which asks [`bin/compute-next-tag.sh`](bin/compute-next-tag.sh) what the commit on `main` should be released as. The answer comes from the Bazarr version pinned in [`defaults/main.yml`](defaults/main.yml) and from the tags that already exist, so a commit that only touches documentation or CI is not released at all, and any change to the role itself is — without waiting for a dependency bump to carry it along.
 
-The answer is derived from the repository's state — `bazarr_version` in [`defaults/main.yml`](defaults/main.yml) and the tags that already exist — rather than from commit messages, which makes it independent of the order in which pull requests get merged:
-
-- a Bazarr version that has never been released starts a fresh counter (`v1.6.1-0`)
-- any later change to `defaults/`, `meta/`, `tasks/` or `templates/` increments it (`v1.6.1-1`)
-- a change that only touches documentation, CI configuration or the Molecule scenario is not released at all, since it does not change what a playbook run does
-
-[`bin/test-compute-next-tag.sh`](bin/test-compute-next-tag.sh) exercises that logic against throwaway repositories, and runs as a pre-commit hook whenever it, the script it tests, or `defaults/main.yml` changes.
+[`bin/test-compute-next-tag.sh`](bin/test-compute-next-tag.sh) exercises that script against throwaway repositories, and runs as a prek hook.
