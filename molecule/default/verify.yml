@@ -324,11 +324,11 @@
           to the API key it generated before the restart.
         success_msg: Bazarr restarted and still answers to the API key it persisted on the role's data path
 
-    - name: Show the verified Bazarr deployment
+    - name: Show the Bazarr verification summary
       ansible.builtin.debug:
         msg:
-          - "systemd: {{ bazarr_verify_service.status.ActiveState }}"
-          - "image: {{ bazarr_verify_container.Config.Image }} ({{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] }})"
-          - "version: {{ bazarr_verify_status.json.data.bazarr_version }}"
-          - "timezone: {{ bazarr_verify_status.json.data.timezone }}"
-          - "database: {{ bazarr_verify_status.json.data.database_engine }} at revision {{ (bazarr_verify_database.stdout | from_json).revisions | first }}"
+          - "Bazarr systemd: {{ bazarr_verify_service.status.ActiveState }}"
+          - "Bazarr image: {{ bazarr_verify_container.Config.Image }} ({{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] }})"
+          - "Bazarr version: {{ bazarr_verify_status.json.data.bazarr_version }}"
+          - "Bazarr timezone: {{ bazarr_verify_status.json.data.timezone }}"
+          - "Bazarr database: {{ bazarr_verify_status.json.data.database_engine }} at revision {{ (bazarr_verify_database.stdout | from_json).revisions | first }}"
