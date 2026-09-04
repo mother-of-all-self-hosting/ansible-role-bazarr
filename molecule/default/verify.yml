@@ -17,7 +17,7 @@
     # resolved outside of the role - and scenario-tuned values (the timezone,
     # the published port, the additional environment variables) deliberately
     # come from the scenario's group_vars instead.
-    bazarr_verify_identifier: "{{ bazarr_verify_defaults.bazarr_identifier }}"
+    bazarr_verify_identifier: "{{ bazarr_defaults.bazarr_identifier }}"
 
     # Mirrors how `bazarr_base_path` and `bazarr_data_path` are derived in
     # defaults/main.yml. The mount assertion below cross-checks the result
@@ -31,10 +31,13 @@
     bazarr_verify_wrong_api_key: "00000000000000000000000000000000"
 
   tasks:
-    - name: Load the Bazarr role defaults
+    # The role is not included in this playbook, so its defaults are not in
+    # scope. Reading defaults/main.yml directly ties the version assertion
+    # below.
+    - name: Load the role defaults
       ansible.builtin.include_vars:
-        file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
-        name: bazarr_verify_defaults
+        file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
+        name: bazarr_defaults
 
     # Necessary but far from sufficient: the unit is `Restart=always`, so a
     # container that crash-loops still reports `active`. Everything that follows
@@ -107,16 +110,14 @@
     - name: Assert that the running container is the pinned Bazarr image
       ansible.builtin.assert:
         that:
-          - bazarr_verify_container.Config.Image == 'docker.io/linuxserver/bazarr:' ~ bazarr_verify_defaults.bazarr_version
-          - bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] is match('^v' ~ (bazarr_verify_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+$')
+          - bazarr_verify_container.Config.Image == 'docker.io/linuxserver/bazarr:' ~ bazarr_defaults.bazarr_version
+          - bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] is match('^v' ~ (bazarr_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+$')
         fail_msg: >-
-          Expected the container to run docker.io/linuxserver/bazarr:{{ bazarr_verify_defaults.bazarr_version }}
-          built from Bazarr v{{ bazarr_verify_defaults.bazarr_version }}, but it runs
+          Expected the container to run docker.io/linuxserver/bazarr:{{ bazarr_defaults.bazarr_version }}
+          built from Bazarr v{{ bazarr_defaults.bazarr_version }}, but it runs
           {{ bazarr_verify_container.Config.Image }}
-          labelled {{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] | default('nothing') }}.
-        success_msg: >-
-          The container runs {{ bazarr_verify_container.Config.Image }}
-          ({{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] }})
+          labelled {{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] | default('none') }}.
+        success_msg: "Bazarr reports {{ bazarr_verify_container.Config.Image }} ({{ bazarr_verify_container.Config.Labels['org.opencontainers.image.version'] }})"
 
     # The README promises these; without them the role would be shipping a
     # writable, root-running, fully capable container while claiming otherwise.
@@ -190,10 +191,10 @@
     # the agreement here is what keeps the pair from drifting apart unnoticed.
     - name: Assert that Bazarr listens on the port the role publishes
       ansible.builtin.assert:
-        that: (bazarr_verify_config.general.port | int) == (bazarr_verify_defaults.bazarr_container_http_port | int)
+        that: (bazarr_verify_config.general.port | int) == (bazarr_defaults.bazarr_container_http_port | int)
         fail_msg: >-
           Bazarr listens on {{ bazarr_verify_config.general.port }} while the role publishes
-          {{ bazarr_verify_defaults.bazarr_container_http_port }}.
+          {{ bazarr_defaults.bazarr_container_http_port }}.
         success_msg: "Bazarr listens on the published port {{ bazarr_verify_config.general.port }}"
 
     # Bazarr ships no authentication on its web interface out of the box. The
@@ -223,8 +224,8 @@
     - name: Assert that Bazarr reports the version, timezone and storage the role configured
       ansible.builtin.assert:
         that:
-          - bazarr_verify_status.json.data.bazarr_version == bazarr_verify_defaults.bazarr_version
-          - bazarr_verify_status.json.data.package_version is match('^v' ~ (bazarr_verify_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+ ')
+          - bazarr_verify_status.json.data.bazarr_version == bazarr_defaults.bazarr_version
+          - bazarr_verify_status.json.data.package_version is match('^v' ~ (bazarr_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+ ')
           - bazarr_verify_status.json.data.timezone == bazarr_environment_variables_tz
           - bazarr_verify_status.json.data.bazarr_config_directory == '/config'
           - bazarr_verify_status.json.data.database_engine is match('^Sqlite ')
