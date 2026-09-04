@@ -82,7 +82,7 @@
       ansible.builtin.assert:
         that: (bazarr_verify_api_unauthenticated.status | default(-1) | int) == 401
         fail_msg: >-
-          The Bazarr API answered {{ bazarr_verify_api_unauthenticated.status | default('nothing') }}
+          The Bazarr API answered {{ bazarr_verify_api_unauthenticated.status | default('none') }}
           instead of 401 to a request carrying no API key.
         success_msg: The Bazarr API rejects unauthenticated requests
 
@@ -321,7 +321,7 @@
           - bazarr_verify_status_after_restart.json.data.start_time > bazarr_verify_status.json.data.start_time
         fail_msg: >-
           After a restart, Bazarr answered
-          {{ bazarr_verify_status_after_restart.status | default('nothing') }}
+          {{ bazarr_verify_status_after_restart.status | default('none') }}
           to the API key it generated before the restart.
         success_msg: Bazarr restarted and still answers to the API key it persisted on the role's data path
 
