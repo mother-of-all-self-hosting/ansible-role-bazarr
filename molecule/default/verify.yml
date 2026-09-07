@@ -39,18 +39,27 @@
         file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
         name: bazarr_defaults
 
-    # Necessary but far from sufficient: the unit is `Restart=always`, so a
-    # container that crash-loops still reports `active`. Everything that follows
-    # is what actually establishes that Bazarr is running and configured.
-    - name: Wait for the Bazarr systemd service to become active
+    - name: Wait for the Bazarr systemd service to become active (up to 180s)
       ansible.builtin.systemd_service:
-        name: "{{ bazarr_verify_identifier }}.service"
-      register: bazarr_verify_service
-      until: bazarr_verify_service.status.ActiveState == 'active'
+        name: bazarr.service
+      register: bazarr_service
+      until: bazarr_service.status.ActiveState == 'active'
       retries: 36
       delay: 5
+      # So that giving up is reported by the assertion below rather than as a
+      # wall of systemd unit properties.
+      failed_when: false
 
-    - name: Retrieve the Bazarr service log for debugging
+    # `Restart=always` in the systemd unit means that even a container which crashes
+    # and gets restarted reads as active here, so this is a precondition rather than
+    # a result.
+    - name: Assert the Bazarr systemd service is active
+      ansible.builtin.assert:
+        that: bazarr_service.status.ActiveState == 'active'
+        fail_msg: "bazarr.service is not active ({{ bazarr_service.status.ActiveState }})"
+        success_msg: "bazarr.service is active"
+
+    - name: Retrieve the Bazarr systemd service log for debugging
       when: bazarr_debug_service_enabled | bool
       ansible.builtin.command:
         cmd: "journalctl -xeu {{ bazarr_verify_identifier }}.service"
@@ -328,7 +337,7 @@
     - name: Show the Bazarr verification summary
       ansible.builtin.debug:
         msg:
-          - "Bazarr systemd: {{ bazarr_verify_service.status.ActiveState }}"
+          - "Bazarr systemd: {{ bazarr_service.status.ActiveState }}"
           - "Bazarr version: {{ bazarr_verify_status.json.data.bazarr_version }}"
           - "Bazarr image: {{ bazarr_container.Config.Image }} ({{ bazarr_container.Config.Labels['org.opencontainers.image.version'] }})"
           - "Bazarr timezone: {{ bazarr_verify_status.json.data.timezone }}"
