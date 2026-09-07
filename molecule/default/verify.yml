@@ -92,12 +92,12 @@
           - docker
           - inspect
           - "{{ bazarr_verify_identifier }}"
-      register: bazarr_verify_inspect
+      register: bazarr_container_raw
       changed_when: false
 
     - name: Extract the Bazarr container definition
       ansible.builtin.set_fact:
-        bazarr_container: "{{ (bazarr_verify_inspect.stdout | from_json)[0] }}"
+        bazarr_container: "{{ (bazarr_container_raw.stdout | from_json)[0] }}"
 
     # This is the assertion that earns (or denies) automated version bumps: the
     # image that is actually running has to be the one `bazarr_version` names.
