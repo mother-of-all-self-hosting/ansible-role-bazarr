@@ -97,10 +97,7 @@
 
     - name: Inspect the Bazarr container
       ansible.builtin.command:
-        argv:
-          - docker
-          - inspect
-          - "{{ bazarr_verify_identifier }}"
+        cmd: "docker container inspect {{ bazarr_verify_identifier }}"
       register: bazarr_container_raw
       changed_when: false
 
