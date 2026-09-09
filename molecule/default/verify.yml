@@ -31,6 +31,8 @@
     bazarr_verify_wrong_api_key: "00000000000000000000000000000000"
 
   tasks:
+    - name: Verify that Bazarr works
+      block:
     # The role is not included in this playbook, so its defaults are not in
     # scope. Reading defaults/main.yml directly ties the version assertion
     # below.
@@ -339,3 +341,19 @@
           - "Bazarr image: {{ bazarr_container.Config.Image }} ({{ bazarr_container.Config.Labels['org.opencontainers.image.version'] }})"
           - "Bazarr timezone: {{ bazarr_verify_status.json.data.timezone }}"
           - "Bazarr database: {{ bazarr_verify_status.json.data.database_engine }} at revision {{ (bazarr_verify_database.stdout | from_json).revisions | first }}"
+
+      rescue:
+        # Whatever went wrong, the reason is almost always in the systemd service log.
+        - name: Retrieve the Bazarr systemd service log
+          ansible.builtin.command:
+            cmd: journalctl --no-pager --output=cat --unit=bazarr.service
+          register: bazarr_service_log
+          changed_when: false
+
+        - name: Show the Bazarr systemd service log
+          ansible.builtin.debug:
+            var: bazarr_service_log.stdout_lines
+
+        - name: Fail because verification did not pass
+          ansible.builtin.fail:
+            msg: "Bazarr verification failed. The systemd service log is printed above."
