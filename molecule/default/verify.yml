@@ -11,19 +11,11 @@
   gather_facts: false
 
   vars:
-    # Role-describing values are read from the role's own defaults, so that a
-    # change to what the role ships has to be matched by what actually runs.
-    # Only leaf literals are read this way - values assembled by Jinja cannot be
-    # resolved outside of the role - and scenario-tuned values (the timezone,
-    # the published port, the additional environment variables) deliberately
-    # come from the scenario's group_vars instead.
-    bazarr_verify_identifier: "{{ bazarr_defaults.bazarr_identifier }}"
-
     # Mirrors how `bazarr_base_path` and `bazarr_data_path` are derived in
     # defaults/main.yml. The mount assertion below cross-checks the result
     # against the path the role really handed to Docker, so a change to the
     # derivation surfaces as a failure rather than as a silently skipped check.
-    bazarr_verify_base_path: "/{{ bazarr_verify_identifier }}"
+    bazarr_verify_base_path: "/bazarr"
     bazarr_verify_data_path: "{{ bazarr_verify_base_path }}/data"
 
     bazarr_verify_url: "http://localhost:{{ bazarr_container_http_host_bind_port }}"
@@ -64,7 +56,7 @@
         - name: Retrieve the Bazarr systemd service log for debugging
           when: bazarr_debug_service_enabled | bool
           ansible.builtin.command:
-            cmd: "journalctl --no-pager --output=cat --unit={{ bazarr_verify_identifier }}.service"
+            cmd: journalctl --no-pager --output=cat --unit=bazarr.service
           changed_when: false
 
         # Bazarr's HTTP port accepts connections only once its Flask application is
@@ -99,7 +91,7 @@
 
         - name: Inspect the Bazarr container
           ansible.builtin.command:
-            cmd: "docker container inspect {{ bazarr_verify_identifier }}"
+            cmd: docker container inspect bazarr
           register: bazarr_container_raw
           changed_when: false
 
@@ -305,7 +297,7 @@
         # finding the same instance behind the API is what proves it did.
         - name: Restart the Bazarr systemd service
           ansible.builtin.systemd_service:
-            name: "{{ bazarr_verify_identifier }}.service"
+            name: bazarr.service
             state: restarted
 
         - name: Wait for the restarted Bazarr to serve its API again
