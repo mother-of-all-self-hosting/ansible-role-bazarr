@@ -22,6 +22,9 @@
 
     bazarr_verify_wrong_api_key: "00000000000000000000000000000000"
 
+    bazarr_verify_units:
+      - bazarr.service
+
   tasks:
     - name: Verify that Bazarr works
       block:
@@ -33,13 +36,14 @@
             file: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/defaults/main.yml"
             name: bazarr_defaults
 
-        - name: Wait for the Bazarr systemd service to become active (up to 180s)
+        - name: Wait for the Bazarr systemd services to become active (up to 180s each)
           ansible.builtin.systemd_service:
-            name: bazarr.service
-          register: bazarr_service
-          until: bazarr_service.status.ActiveState == 'active'
+            name: "{{ item }}"
+          register: bazarr_services
+          until: bazarr_services.status.ActiveState == 'active'
           retries: 36
           delay: 5
+          loop: "{{ bazarr_verify_units }}"
           # So that giving up is reported by the assertion below rather than as a
           # wall of systemd unit properties.
           failed_when: false
@@ -47,17 +51,20 @@
         # `Restart=always` in the systemd unit means that even a container which crashes
         # and gets restarted reads as active here, so this is a precondition rather than
         # a result.
-        - name: Assert the Bazarr systemd service is active
+        - name: Assert the Bazarr systemd services are active
           ansible.builtin.assert:
-            that: bazarr_service.status.ActiveState == 'active'
-            fail_msg: "bazarr.service is not active ({{ bazarr_service.status.ActiveState }})"
-            success_msg: "bazarr.service is active"
+            that: bazarr_services.results | map(attribute='status.ActiveState') | unique | list == ['active']
+            fail_msg: >-
+              Not every service is active:
+              {{ dict(bazarr_verify_units | zip(bazarr_services.results | map(attribute='status.ActiveState'))) }}
+            success_msg: "Every systemd service is active"
 
-        - name: Retrieve the Bazarr systemd service log for debugging
+        - name: Retrieve the Bazarr systemd services log for debugging
           when: bazarr_debug_service_enabled | bool
           ansible.builtin.command:
-            cmd: journalctl --no-pager --output=cat --unit=bazarr.service
+            cmd: "journalctl --no-pager --output=cat --unit={{ item }}"
           changed_when: false
+          loop: "{{ bazarr_verify_units }}"
 
         # Bazarr's HTTP port accepts connections only once its Flask application is
         # serving, and a published Docker port with nothing behind it makes the
@@ -328,7 +335,7 @@
         - name: Show the Bazarr verification summary
           ansible.builtin.debug:
             msg:
-              - "Bazarr systemd: {{ bazarr_service.status.ActiveState }}"
+              - "Bazarr systemd: {% for unit, state in bazarr_verify_units | zip(bazarr_services.results | map(attribute='status.ActiveState')) %}{{ unit }} ({{ state }}){% if not loop.last %}, {% endif %}{% endfor %}"
               - "Bazarr version: {{ bazarr_verify_status.json.data.bazarr_version }}"
               - "Bazarr image: {{ bazarr_container.Config.Image }} ({{ bazarr_container.Config.Labels['org.opencontainers.image.version'] }})"
               - "Bazarr timezone: {{ bazarr_verify_status.json.data.timezone }}"
