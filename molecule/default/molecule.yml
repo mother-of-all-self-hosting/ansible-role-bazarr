@@ -31,6 +31,7 @@ provisioner:
       all:
         # Helper variables
         bazarr_debug_service_enabled: false
+        bazarr_restarts_check_enabled: true
 
         # Variables for Bazarr
         bazarr_uid: 1000
