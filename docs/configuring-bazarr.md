@@ -70,6 +70,21 @@ bazarr_container_labels_traefik_middleware_basic_auth_enabled: false
 
 Bazarr's REST API is a separate matter: it is guarded by an API key that Bazarr generates for itself on first boot and keeps in `config/config.yaml` under `bazarr_data_path`. That guard applies regardless of whether the HTTP Basic authentication above is enabled.
 
+### Mounting data directories (optional)
+
+To mount data directories, add the following configuration to your `vars.yml` file (adapt to your needs):
+
+```yaml
+bazarr_container_additional_volumes_custom:
+  - type: bind
+    src: /path/on/the/host
+    dst: /data
+  - type: bind
+    src: /another-path/on/the/host
+    dst: /read-only
+    options: readonly
+```
+
 ### Extending the configuration
 
 There are some additional things you may wish to configure about the service.
