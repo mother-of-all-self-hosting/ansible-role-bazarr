@@ -49,15 +49,13 @@ Currently there is one testing scenario available.
 
 Tests a standard Bazarr installation.
 
-Because Bazarr's systemd unit is `Restart=always`, a crash-looping container still reports `active`, so the scenario does not settle for a running unit. What it establishes instead:
+Here is a synopsis of what a successful run proves. Check the scenario itself for details about what are exactly checked.
 
-- **The pinned image is what runs.** The container's image reference has to be `linuxserver/bazarr:<bazarr_version>`, and the image's `org.opencontainers.image.version` label has to read `v<bazarr_version>-ls<build>`. That second half matters: `linuxserver/bazarr:<version>` is a tag LinuxServer.io *republishes* on every rebuild, so on its own it does not identify a build — the label does, and asserting the pair records which Bazarr release the tag currently resolves to.
-- **The role's configuration reaches the process, not merely the disk.** The scenario asks for a timezone (`Australia/Eucla`) that is neither the role's default nor anything the image would arrive at by itself, plus a marker in `bazarr_environment_variables_additional_variables`. Both are checked in the rendered `env` file and in the running container's environment, and the timezone is additionally checked against what Bazarr itself reports back over its API.
-- **The API is guarded.** Bazarr ships no authentication on its web interface, but its REST API requires the key it generates for itself on first boot. The scenario asserts that an unauthenticated request is refused, that the key found in the configuration file on the role's data path opens it, and that a different key does not.
-- **State lands on the role's data path.** The `/config` bind mount has to be `bazarr_data_path`, Bazarr's own configuration file has to be there, and the SQLite database there has to carry a migrated Bazarr schema with an Alembic revision stamped. The service is then restarted and has to come back answering to the key it persisted, which is what proves the read-only container keeps nothing of value outside the mount.
-- **Bazarr listens where the role publishes.** `bazarr_container_http_port` is asserted against the port in Bazarr's own configuration file, so the two cannot drift apart unnoticed.
-
-These checks are what an automated version bump would have to survive. A Bazarr container that is hardened and versioned identically but was not deployed by this role is rejected at the data-path assertion.
+- The pinned version is the running one
+- The role's configuration reaches the process
+- The API is guarded with the key Bazarr generates
+- State lands on the role's data path
+- Bazarr listens where the role publishes
 
 ## Running
 
