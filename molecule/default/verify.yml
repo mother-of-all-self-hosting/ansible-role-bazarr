@@ -117,10 +117,10 @@
         - name: Assert that the running container is the pinned Bazarr image
           ansible.builtin.assert:
             that:
-              - bazarr_container.Config.Image == 'docker.io/linuxserver/bazarr:' ~ bazarr_defaults.bazarr_version
+              - bazarr_container.Config.Image == 'ghcr.io/linuxserver/bazarr:' ~ bazarr_defaults.bazarr_version
               - bazarr_container.Config.Labels['org.opencontainers.image.version'] is match('^v' ~ (bazarr_defaults.bazarr_version | regex_escape) ~ '-ls[0-9]+$')
             fail_msg: >-
-              Expected the container to run docker.io/linuxserver/bazarr:{{ bazarr_defaults.bazarr_version }}
+              Expected the container to run ghcr.io/linuxserver/bazarr:{{ bazarr_defaults.bazarr_version }}
               built from Bazarr v{{ bazarr_defaults.bazarr_version }}, but it runs
               {{ bazarr_container.Config.Image }}
               labelled {{ bazarr_container.Config.Labels['org.opencontainers.image.version'] | default('none') }}.

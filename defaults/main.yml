@@ -18,8 +18,7 @@ bazarr_identifier: bazarr
 bazarr_base_path: "/{{ bazarr_identifier }}"
 bazarr_data_path: "{{ bazarr_base_path }}/data"
 
-# The tag is not immutable. LinuxServer.io rebuilds its images regularly for base image and dependency updates, and republishes `linuxserver/bazarr:<version>` each time. LinuxServer.io also publishes immutable `v<version>-ls<build>` tags. If you would rather pin one, you can set it yourself.
-# renovate: datasource=docker depName=linuxserver/bazarr versioning=semver
+# renovate: datasource=docker depName=ghcr.io/linuxserver/bazarr versioning=semver
 bazarr_version: 1.6.0
 
 bazarr_uid: ""
@@ -39,7 +38,7 @@ bazarr_container_image: "{{ bazarr_container_image_registry_prefix }}linuxserver
 bazarr_container_image_tag: "{{ bazarr_version }}"
 bazarr_container_image_registry_prefix: "{{ bazarr_container_image_registry_prefix_upstream }}"
 bazarr_container_image_registry_prefix_upstream: "{{ bazarr_container_image_registry_prefix_upstream_default }}"
-bazarr_container_image_registry_prefix_upstream_default: docker.io/
+bazarr_container_image_registry_prefix_upstream_default: ghcr.io/
 
 # The base container network. It will be auto-created by this role if it doesn't exist already.
 bazarr_container_network: "{{ bazarr_identifier }}"
