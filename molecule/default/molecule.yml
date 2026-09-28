@@ -33,23 +33,61 @@ provisioner:
         bazarr_debug_service_enabled: false
         bazarr_restarts_check_enabled: true
 
-        # Variables for Bazarr
-        bazarr_uid: 1000
-        bazarr_gid: 1000
-        bazarr_scheme: http
+        # The host directory mounted into the container through
+        # `bazarr_container_additional_volumes_custom`, and the file placed in it by
+        # prepare.yml. Reading that file from inside the container is what
+        # proves the additional volumes reach the systemd unit rather than
+        # being merely declared in defaults/main.yml.
+        bazarr_molecule_extra_volume_src: /bazarr-molecule-extra
+        bazarr_molecule_extra_volume_dst: /molecule-extra
+        bazarr_molecule_extra_volume_marker: only-a-real-bind-mount-can-read-this
+
+        # Files placed on the host under the paths the role bind-mounts. Jackett
+        # itself is asked to list them back, so a mount that docker accepted but
+        # the process cannot see does not pass.
+        bazarr_molecule_marker_filename: bazarr-molecule-marker.txt
+
+        # Variables for Jackett
+        #
+        # Deliberately not 1000: the linuxserver.io PUID/PGID pattern has left a
+        # needed directory unwritable in other roles of this fleet, and a uid
+        # that exists in the test image by accident would hide that.
+        bazarr_uid: 1717
+        bazarr_gid: 1717
+
         bazarr_hostname: localhost
-        bazarr_container_labels_traefik_enabled: false
-        bazarr_container_http_host_bind_port: 6767
 
-        # Neither the role's default (UTC) nor anything the image would settle
-        # on by itself, so seeing Bazarr report it back proves that the env
-        # template reached the process rather than merely the disk.
-        bazarr_environment_variables_tz: Australia/Eucla
+        # A non-root path prefix exercises the strip-prefix and slashless
+        # redirect middlewares in templates/labels.j2.
+        bazarr_path_prefix: /bazarr-ui
 
-        # A marker no image default could produce, which verify.yml looks for
-        # both in the rendered env file and in the running container's
-        # environment, to prove the passthrough works end to end.
-        bazarr_environment_variables_additional_variables: MASH_MOLECULE_MARKER=reached-the-process
+        # Bound to the loopback interface of the test container only. Nothing
+        # is published to the machine running Molecule, so two scenarios can
+        # run side by side without fighting over a port.
+        bazarr_container_http_host_bind_port: "127.0.0.1:6767"
+
+        bazarr_container_http_port: 6767
+
+        bazarr_container_additional_volumes_custom:
+          - type: bind
+            src: "{{ bazarr_molecule_extra_volume_src }}"
+            dst: "{{ bazarr_molecule_extra_volume_dst }}"
+            options: readonly
+
+        bazarr_container_labels_traefik_enabled: true
+
+        bazarr_container_labels_traefik_middleware_basic_auth_enabled: false
+
+        bazarr_container_labels_additional_labels:
+          - mash.molecule.additional-label=set-by-the-role
+
+        bazarr_container_extra_arguments:
+          - "--label=mash.molecule.extra-argument=set-by-the-role"
+
+        # Neither the role's default of Etc/UTC nor the test host's zone, so
+        # that the timezone the container ends up in can only have come from
+        # templates/env.j2.
+        bazarr_environment_variables_tz: Asia/Tokyo
   env:
     # Workaround for https://github.com/ansible/molecule/issues/4391
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/..:/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:~/.ansible/roles
