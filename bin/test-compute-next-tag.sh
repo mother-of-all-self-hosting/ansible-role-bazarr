@@ -56,7 +56,7 @@ scenario() {
 	git config commit.gpgsign false
 
 	cat > defaults/main.yml <<-'YAML'
-		# renovate: datasource=docker depName=linuxserver/bazarr versioning=semver
+		# renovate: datasource=docker depName=ghcr.io/linuxserver/bazarr versioning=semver
 		bazarr_version: 1.6.0
 
 		bazarr_container_image: "{{ bazarr_container_image_registry_prefix }}linuxserver/bazarr:{{ bazarr_container_image_tag }}"
