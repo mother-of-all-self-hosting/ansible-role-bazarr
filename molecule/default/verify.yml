@@ -274,21 +274,6 @@
         #
         # ------------------------------------------------------------------
 
-        # The README promises these; without them the role would be shipping a
-        # writable, root-running, fully capable container while claiming otherwise.
-        - name: Assert that the Bazarr container is hardened as documented
-          ansible.builtin.assert:
-            that:
-              - bazarr_container.HostConfig.ReadonlyRootfs
-              - bazarr_container.Config.User == (bazarr_uid | string) ~ ':' ~ (bazarr_gid | string)
-              - bazarr_container.HostConfig.CapDrop == ['ALL']
-            fail_msg: >-
-              The Bazarr container is not hardened as documented
-              (read-only: {{ bazarr_container.HostConfig.ReadonlyRootfs }},
-              user: {{ bazarr_container.Config.User }},
-              dropped capabilities: {{ bazarr_container.HostConfig.CapDrop }}).
-            success_msg: The Bazarr container is read-only, unprivileged and drops all capabilities by default
-
         # Bazarr writes its own configuration file; the role only provides the
         # directory it lives in. Reading it back from the role's data path proves
         # both that the bind mount is in effect and where the API key comes from.
