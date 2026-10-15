@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2023, 2025 MASH project contributors
 # SPDX-FileCopyrightText: 2023-2026 Slavi Pantaleev
 # SPDX-FileCopyrightText: 2024 Sergio Durigan Junior
-# SPDX-FileCopyrightText: 2025 spatterlight
+# SPDX-FileCopyrightText: 2025, 2026 spatterlight
 # SPDX-FileCopyrightText: 2025, 2026 Suguru Hirahara
 # SPDX-FileCopyrightText: 2026 sudo-Tiz
 #
@@ -123,8 +123,8 @@ bazarr_container_labels_additional_labels: "{{ bazarr_container_labels_additiona
 bazarr_container_labels_additional_labels_auto: []
 bazarr_container_labels_additional_labels_custom: []
 
-# Specify the size of the container's tmpfs volume
-bazarr_server_container_tmpfs_tmp_size: 128m
+# Specify the size of the container's tmpfs volume (/run)
+bazarr_container_tmpfs_run_size: 128m
 
 # A list of extra arguments to pass to the container (`docker create` command)
 bazarr_container_extra_arguments: "{{ bazarr_container_extra_arguments_auto + bazarr_container_extra_arguments_custom }}"
