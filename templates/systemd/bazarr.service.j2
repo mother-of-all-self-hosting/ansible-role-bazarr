@@ -48,6 +48,7 @@ ExecStartPre={{ devture_systemd_docker_base_host_command_docker }} create \
       {% endfor %}
       # https://docs.linuxserver.io/misc/read-only/#how
       --tmpfs=/run:rw,exec,nosuid,size={{ bazarr_container_tmpfs_run_size }} \
+      --tmpfs=/tmp:rw,noexec,nosuid,size={{ bazarr_container_tmpfs_tmp_size }} \
       {% for arg in bazarr_container_extra_arguments %}
       {{ arg }} \
       {% endfor %}
