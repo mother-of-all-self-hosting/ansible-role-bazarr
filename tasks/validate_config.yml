@@ -24,9 +24,6 @@
   with_items:
     - bazarr_uid
     - bazarr_gid
-    - bazarr_hostname
-    - bazarr_path_prefix
-    - bazarr_container_network
 
 - name: Fail if Bazarr is expected to listen on a port it cannot listen on
   ansible.builtin.fail:
